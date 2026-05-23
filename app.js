@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
     // --------------------------------------------------------------------------
-    // 1. Volunteer Form Submission & Capture
+    // 1. Volunteer Form Submission & Capture (Aligned with Formspree)
     // --------------------------------------------------------------------------
     const volunteerForm = document.getElementById("volunteerForm");
     const otherAreaGroup = document.getElementById("otherAreaGroup");
@@ -23,7 +23,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (volunteerForm) {
-        volunteerForm.addEventListener("submit", (e) => {
+        // Changed to an async function to accommodate the await fetch call
+        volunteerForm.addEventListener("submit", async (e) => {
             e.preventDefault();
 
             // Collect checkboxes arrays securely
@@ -61,29 +62,62 @@ document.addEventListener("DOMContentLoaded", () => {
                 location: document.getElementById("location").value,
                 occupation: document.getElementById("occupation").value,
                 reason: document.getElementById("reason").value,
-                helpAreas: selectedAreas,
-                physicalAvailability: document.querySelector('input[name="physical"]:checked')?.value,
+                helpAreas: selectedAreas.join(", "), // Flatten array to readable text for Formspree email templates
+                physicalAvailability: document.querySelector('input[name="physical"]:checked')?.value || "Not Specified",
                 skills: document.getElementById("skills").value,
-                contactMethods: selectedContactMethods
+                contactMethods: selectedContactMethods.join(", ") // Flatten array
             };
 
             // Keep original log statement for data packet auditing
             console.log("Volunteer Data Packets Processed:", submissionPayload);
 
-            // Populating data preview in the sleek success modal
-            document.getElementById("previewName").textContent = submissionPayload.fullName;
-            document.getElementById("previewEmail").textContent = submissionPayload.email;
-            document.getElementById("previewAreas").textContent = submissionPayload.helpAreas.join(", ");
-            document.getElementById("previewAvailability").textContent = submissionPayload.physicalAvailability || "Not Specified";
+            // Disable form submit button while transmitting data to avoid double submissions
+            const submitBtn = volunteerForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = "Sending...";
+            }
 
-            // Open Success Modal Overlay (stunning modern feedback mechanism)
-            openModal();
+            try {
+                // Background asynchronous execution delivering to Formspree Endpoint
+                const response = await fetch("https://formspree.io/f/mnjrzjan", {
+                    method: "POST",
+                    body: JSON.stringify(submissionPayload),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                });
 
-            // Reset volunteer form elements & collapse other field
-            volunteerForm.reset();
-            if (otherAreaGroup) {
-                otherAreaGroup.classList.remove("show");
-                otherAreaInput.removeAttribute("required");
+                if (response.ok) {
+                    // Populating data preview in the sleek success modal
+                    document.getElementById("previewName").textContent = submissionPayload.fullName;
+                    document.getElementById("previewEmail").textContent = submissionPayload.email;
+                    document.getElementById("previewAreas").textContent = submissionPayload.helpAreas;
+                    document.getElementById("previewAvailability").textContent = submissionPayload.physicalAvailability;
+
+                    // Open Success Modal Overlay (stunning modern feedback mechanism)
+                    openModal();
+
+                    // Reset volunteer form elements & collapse other field
+                    volunteerForm.reset();
+                    if (otherAreaGroup) {
+                        otherAreaGroup.classList.remove("show");
+                        otherAreaInput.removeAttribute("required");
+                    }
+                } else {
+                    const errData = await response.json();
+                    alert("Submission failed: " + (errData.errors ? errData.errors.map(err => err.message).join(", ") : "Please try again later."));
+                }
+            } catch (error) {
+                console.error("Network connectivity failure:", error);
+                alert("An error occurred. Check your network link connection and try again.");
+            } finally {
+                // Re-enable submission controls post transmission cycle
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Send Message"; // Adjust to match your original button text if different
+                }
             }
         });
     }
