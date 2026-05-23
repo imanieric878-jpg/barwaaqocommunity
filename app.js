@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             try {
                 // Background asynchronous execution delivering to Formspree Endpoint
-                const response = await fetch("https://formspree.io/f/mnjrzjan", {
+                const response = await fetch("https://formspree.io/f/xgoqzkvw", {
                     method: "POST",
                     body: JSON.stringify(submissionPayload),
                     headers: {
